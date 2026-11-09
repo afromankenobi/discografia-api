@@ -1,0 +1,173 @@
+# -*- mode: restclient; -*-
+# Rock chileno — ejemplos para Doom Emacs (rest +jq)
+# En este buffer: M-: (setq-local restclient-enable-eval t) RET
+# Ejecuta en orden con C-c C-c o SPC m e; los IDs se guardan automáticamente.
+# Las canciones son una selección de cada álbum, no el listado completo.
+# Estas peticiones insertan datos reales; repetir un POST crea otro registro.
+# No hay eliminaciones. Los ejemplos quedan disponibles para consultar.
+# Cambia el puerto a 18082 si sigues usando la API de la sesión de pruebas.
+
+:base = http://127.0.0.1:8080/api
+:jaivas-id = EJECUTA_PRIMERO_EL_POST_DE_LOS_JAIVAS
+:prisioneros-id = EJECUTA_PRIMERO_EL_POST_DE_LOS_PRISIONEROS
+:tres-id = EJECUTA_PRIMERO_EL_POST_DE_LOS_TRES
+
+### 01 Crear Los Jaivas
+# Esperado: HTTP 201
+POST :base/artista
+Accept: application/json
+Content-Type: application/json
+-> run-hook (progn (cl-assert (save-excursion (goto-char (point-min)) (re-search-forward "HTTP/[0-9.]+ 201\\b" nil t))) (restclient-set-var ":jaivas-id" (cdr (assq '_id (let ((json-object-type 'alist) (json-key-type 'symbol)) (json-read-from-string (buffer-string)))))))
+
+{
+  "nombre": "Los Jaivas",
+  "estilos": [
+    "Rock progresivo",
+    "Folclore"
+  ],
+  "anioFundacion": 1963,
+  "estaActivo": true
+}
+
+### 02 Los Jaivas — Alturas de Machu Picchu (1981)
+# Esperado: HTTP 201
+POST :base/disco
+Accept: application/json
+Content-Type: application/json
+-> run-hook (progn (cl-assert (save-excursion (goto-char (point-min)) (re-search-forward "HTTP/[0-9.]+ 201\\b" nil t))))
+
+{
+  "idArtista": ":jaivas-id",
+  "nombre": "Alturas de Machu Picchu",
+  "anioLanzamiento": 1981,
+  "canciones": [
+    "La poderosa muerte",
+    "Sube a nacer conmigo hermano"
+  ]
+}
+
+### 03 Consultar discos de Los Jaivas
+# Esperado: HTTP 200
+GET :base/artista/:jaivas-id/discos
+Accept: application/json
+-> run-hook (progn (cl-assert (save-excursion (goto-char (point-min)) (re-search-forward "HTTP/[0-9.]+ 200\\b" nil t))))
+
+### 04 Crear Los Prisioneros
+# Esperado: HTTP 201
+POST :base/artista
+Accept: application/json
+Content-Type: application/json
+-> run-hook (progn (cl-assert (save-excursion (goto-char (point-min)) (re-search-forward "HTTP/[0-9.]+ 201\\b" nil t))) (restclient-set-var ":prisioneros-id" (cdr (assq '_id (let ((json-object-type 'alist) (json-key-type 'symbol)) (json-read-from-string (buffer-string)))))))
+
+{
+  "nombre": "Los Prisioneros",
+  "estilos": [
+    "Rock",
+    "New wave",
+    "Synth-pop"
+  ],
+  "anioFundacion": 1983,
+  "estaActivo": false
+}
+
+### 05 Los Prisioneros — La voz de los '80 (1984)
+# Esperado: HTTP 201
+POST :base/disco
+Accept: application/json
+Content-Type: application/json
+-> run-hook (progn (cl-assert (save-excursion (goto-char (point-min)) (re-search-forward "HTTP/[0-9.]+ 201\\b" nil t))))
+
+{
+  "idArtista": ":prisioneros-id",
+  "nombre": "La voz de los '80",
+  "anioLanzamiento": 1984,
+  "canciones": [
+    "La voz de los '80",
+    "Sexo",
+    "Paramar"
+  ]
+}
+
+### 06 Los Prisioneros — Pateando piedras (1986)
+# Esperado: HTTP 201
+POST :base/disco
+Accept: application/json
+Content-Type: application/json
+-> run-hook (progn (cl-assert (save-excursion (goto-char (point-min)) (re-search-forward "HTTP/[0-9.]+ 201\\b" nil t))))
+
+{
+  "idArtista": ":prisioneros-id",
+  "nombre": "Pateando piedras",
+  "anioLanzamiento": 1986,
+  "canciones": [
+    "El baile de los que sobran",
+    "Muevan las industrias",
+    "Quieren dinero"
+  ]
+}
+
+### 07 Consultar discos de Los Prisioneros
+# Esperado: HTTP 200
+GET :base/artista/:prisioneros-id/discos
+Accept: application/json
+-> run-hook (progn (cl-assert (save-excursion (goto-char (point-min)) (re-search-forward "HTTP/[0-9.]+ 200\\b" nil t))))
+
+### 08 Crear Los Tres
+# Esperado: HTTP 201
+POST :base/artista
+Accept: application/json
+Content-Type: application/json
+-> run-hook (progn (cl-assert (save-excursion (goto-char (point-min)) (re-search-forward "HTTP/[0-9.]+ 201\\b" nil t))) (restclient-set-var ":tres-id" (cdr (assq '_id (let ((json-object-type 'alist) (json-key-type 'symbol)) (json-read-from-string (buffer-string)))))))
+
+{
+  "nombre": "Los Tres",
+  "estilos": [
+    "Rock",
+    "Rockabilly",
+    "Cueca"
+  ],
+  "anioFundacion": 1987,
+  "estaActivo": true
+}
+
+### 09 Los Tres — Los Tres (1991)
+# Esperado: HTTP 201
+POST :base/disco
+Accept: application/json
+Content-Type: application/json
+-> run-hook (progn (cl-assert (save-excursion (goto-char (point-min)) (re-search-forward "HTTP/[0-9.]+ 201\\b" nil t))))
+
+{
+  "idArtista": ":tres-id",
+  "nombre": "Los Tres",
+  "anioLanzamiento": 1991,
+  "canciones": [
+    "Un amor violento",
+    "He barrido el sol",
+    "La primera vez"
+  ]
+}
+
+### 10 Los Tres — La espada y la pared (1995)
+# Esperado: HTTP 201
+POST :base/disco
+Accept: application/json
+Content-Type: application/json
+-> run-hook (progn (cl-assert (save-excursion (goto-char (point-min)) (re-search-forward "HTTP/[0-9.]+ 201\\b" nil t))))
+
+{
+  "idArtista": ":tres-id",
+  "nombre": "La espada y la pared",
+  "anioLanzamiento": 1995,
+  "canciones": [
+    "D\u00e9jate caer",
+    "T\u00edrate",
+    "La espada y la pared"
+  ]
+}
+
+### 11 Consultar discos de Los Tres
+# Esperado: HTTP 200
+GET :base/artista/:tres-id/discos
+Accept: application/json
+-> run-hook (progn (cl-assert (save-excursion (goto-char (point-min)) (re-search-forward "HTTP/[0-9.]+ 200\\b" nil t))))

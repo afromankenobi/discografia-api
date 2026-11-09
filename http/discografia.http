@@ -1,0 +1,205 @@
+# -*- mode: restclient; -*-
+# Discografía — pruebas manuales para Doom Emacs (restclient-mode)
+# Primero, en este buffer: M-: (setq-local restclient-enable-eval t) RET
+# Esto habilita los hooks de comprobación y captura de IDs solo en este archivo.
+# Ejecutar en orden, una petición a la vez: C-c C-c o SPC m e.
+# Cada hook comprueba el estado HTTP; un fallo muestra cl-assertion-failed.
+# Los POST guardan sus IDs en memoria; no hay que copiar ni guardar IDs reales.
+# Repetir 01 y 05 para comenzar otra sesión. No ejecutar DELETE antes de 01.
+# Crea datos de prueba en la base conectada a la API. El disco queda conservado.
+# API actual: 18082. Si inicias con el puerto predeterminado, cambia a 8080.
+
+:base = http://127.0.0.1:18082/api
+:artista-id = EJECUTA_PRIMERO_01
+:disco-id = EJECUTA_PRIMERO_05
+:ausente = emacs-recurso-inexistente
+
+### 01 Crear artista
+# Esperado: HTTP 201
+POST :base/artista
+Accept: application/json
+Content-Type: application/json
+-> run-hook (progn (cl-assert (save-excursion (goto-char (point-min)) (re-search-forward "HTTP/[0-9.]+ 201\\b" nil t))) (restclient-set-var ":artista-id" (cdr (assq '_id (let ((json-object-type 'alist) (json-key-type 'symbol)) (json-read-from-string (buffer-string)))))))
+
+{
+  "nombre": "Banda de prueba Emacs",
+  "estilos": [
+    "Rock",
+    "Folclore"
+  ],
+  "anioFundacion": 2000,
+  "estaActivo": true
+}
+
+### 02 Listar artistas
+# Esperado: HTTP 200
+GET :base/artistas
+Accept: application/json
+-> run-hook (progn (cl-assert (save-excursion (goto-char (point-min)) (re-search-forward "HTTP/[0-9.]+ 200\\b" nil t))))
+
+### 03 Obtener artista creado
+# Esperado: HTTP 200
+GET :base/artista/:artista-id
+Accept: application/json
+-> run-hook (progn (cl-assert (save-excursion (goto-char (point-min)) (re-search-forward "HTTP/[0-9.]+ 200\\b" nil t))))
+
+### 04 Actualizar artista conservando el ID de la URL
+# Esperado: HTTP 200
+PUT :base/artista/:artista-id
+Accept: application/json
+Content-Type: application/json
+-> run-hook (progn (cl-assert (save-excursion (goto-char (point-min)) (re-search-forward "HTTP/[0-9.]+ 200\\b" nil t))) (cl-assert (not (string-match-p "no-debe-reemplazar-id" (buffer-string)))))
+
+{
+  "nombre": "Banda de prueba Emacs actualizada",
+  "estilos": [
+    "Rock",
+    "Folclore"
+  ],
+  "anioFundacion": 2000,
+  "estaActivo": true,
+  "_id": "no-debe-reemplazar-id"
+}
+
+### 05 Crear disco para el artista
+# Esperado: HTTP 201
+POST :base/disco
+Accept: application/json
+Content-Type: application/json
+-> run-hook (progn (cl-assert (save-excursion (goto-char (point-min)) (re-search-forward "HTTP/[0-9.]+ 201\\b" nil t))) (restclient-set-var ":disco-id" (cdr (assq '_id (let ((json-object-type 'alist) (json-key-type 'symbol)) (json-read-from-string (buffer-string)))))))
+
+{
+  "idArtista": ":artista-id",
+  "nombre": "Disco de prueba Emacs",
+  "anioLanzamiento": 2020,
+  "canciones": [
+    "Primera canci\u00f3n",
+    "Segunda canci\u00f3n"
+  ]
+}
+
+### 06 Listar discos
+# Esperado: HTTP 200
+GET :base/discos
+Accept: application/json
+-> run-hook (progn (cl-assert (save-excursion (goto-char (point-min)) (re-search-forward "HTTP/[0-9.]+ 200\\b" nil t))))
+
+### 07 Obtener disco creado
+# Esperado: HTTP 200
+GET :base/disco/:disco-id
+Accept: application/json
+-> run-hook (progn (cl-assert (save-excursion (goto-char (point-min)) (re-search-forward "HTTP/[0-9.]+ 200\\b" nil t))))
+
+### 08 Consultar discos del artista
+# Esperado: HTTP 200
+GET :base/artista/:artista-id/discos
+Accept: application/json
+-> run-hook (progn (cl-assert (save-excursion (goto-char (point-min)) (re-search-forward "HTTP/[0-9.]+ 200\\b" nil t))))
+
+### 09 Rechazar ID duplicado
+# Esperado: HTTP 409
+POST :base/artista
+Accept: application/json
+Content-Type: application/json
+-> run-hook (progn (cl-assert (save-excursion (goto-char (point-min)) (re-search-forward "HTTP/[0-9.]+ 409\\b" nil t))))
+
+{
+  "nombre": "Banda de prueba Emacs",
+  "estilos": [
+    "Rock",
+    "Folclore"
+  ],
+  "anioFundacion": 2000,
+  "estaActivo": true,
+  "_id": ":artista-id"
+}
+
+### 10 Rechazar artista sin nombre
+# Esperado: HTTP 400
+POST :base/artista
+Accept: application/json
+Content-Type: application/json
+-> run-hook (progn (cl-assert (save-excursion (goto-char (point-min)) (re-search-forward "HTTP/[0-9.]+ 400\\b" nil t))))
+
+{}
+
+### 11 Rechazar disco sin artista
+# Esperado: HTTP 400
+POST :base/disco
+Accept: application/json
+Content-Type: application/json
+-> run-hook (progn (cl-assert (save-excursion (goto-char (point-min)) (re-search-forward "HTTP/[0-9.]+ 400\\b" nil t))))
+
+{
+  "nombre": "Sin artista"
+}
+
+### 12 Artista inexistente
+# Esperado: HTTP 404
+GET :base/artista/:ausente
+Accept: application/json
+-> run-hook (progn (cl-assert (save-excursion (goto-char (point-min)) (re-search-forward "HTTP/[0-9.]+ 404\\b" nil t))))
+
+### 13 Disco inexistente
+# Esperado: HTTP 404
+GET :base/disco/:ausente
+Accept: application/json
+-> run-hook (progn (cl-assert (save-excursion (goto-char (point-min)) (re-search-forward "HTTP/[0-9.]+ 404\\b" nil t))))
+
+### 14 Disco para artista inexistente
+# Esperado: HTTP 404
+POST :base/disco
+Accept: application/json
+Content-Type: application/json
+-> run-hook (progn (cl-assert (save-excursion (goto-char (point-min)) (re-search-forward "HTTP/[0-9.]+ 404\\b" nil t))))
+
+{
+  "idArtista": ":ausente",
+  "nombre": "Disco de prueba Emacs",
+  "anioLanzamiento": 2020,
+  "canciones": [
+    "Primera canci\u00f3n",
+    "Segunda canci\u00f3n"
+  ]
+}
+
+### 15 Filtro sin resultados devuelve lista vacía
+# Esperado: HTTP 200
+GET :base/artista/:ausente/discos
+Accept: application/json
+-> run-hook (progn (cl-assert (save-excursion (goto-char (point-min)) (re-search-forward "HTTP/[0-9.]+ 200\\b" nil t))) (cl-assert (equal [] (let ((json-array-type 'vector)) (json-read-from-string (buffer-string))))))
+
+### 16 Eliminar SOLO el artista creado en 01
+# Esperado: HTTP 200
+DELETE :base/artista/:artista-id
+Accept: application/json
+-> run-hook (progn (cl-assert (save-excursion (goto-char (point-min)) (re-search-forward "HTTP/[0-9.]+ 200\\b" nil t))))
+
+### 17 Confirmar que fue eliminado
+# Esperado: HTTP 404
+GET :base/artista/:artista-id
+Accept: application/json
+-> run-hook (progn (cl-assert (save-excursion (goto-char (point-min)) (re-search-forward "HTTP/[0-9.]+ 404\\b" nil t))))
+
+### 18 Rechazar actualización del artista eliminado
+# Esperado: HTTP 404
+PUT :base/artista/:artista-id
+Accept: application/json
+Content-Type: application/json
+-> run-hook (progn (cl-assert (save-excursion (goto-char (point-min)) (re-search-forward "HTTP/[0-9.]+ 404\\b" nil t))))
+
+{
+  "nombre": "Banda de prueba Emacs",
+  "estilos": [
+    "Rock",
+    "Folclore"
+  ],
+  "anioFundacion": 2000,
+  "estaActivo": true
+}
+
+### 19 Rechazar segunda eliminación
+# Esperado: HTTP 404
+DELETE :base/artista/:artista-id
+Accept: application/json
+-> run-hook (progn (cl-assert (save-excursion (goto-char (point-min)) (re-search-forward "HTTP/[0-9.]+ 404\\b" nil t))))
